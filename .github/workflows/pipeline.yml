@@ -55,7 +55,7 @@ jobs:
           dplyr
           lubridate
           readr
-        dependencies: "hard"
+        dependencies: FALSE
 
     # -----------------------
     # Run pipeline
