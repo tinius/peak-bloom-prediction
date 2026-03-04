@@ -427,7 +427,8 @@ for (i in seq_along(files)) {
     DATE = rep(df$DATE, times = length(cols)),
     path_id = rep(seq_along(cols), each = nrow(df)),
     tmean_c = as.vector(temp_matrix[, cols])
-  )
+  ) %>%
+    mutate(observed = DATE < today)
   
   paths_sample <- paths_sample %>%
     mutate(DATE = format(as.Date(DATE), "%Y-%m-%d"))
