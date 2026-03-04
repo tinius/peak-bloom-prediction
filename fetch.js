@@ -8,6 +8,8 @@ const indexToDate = (monthIndex, dayIndex) =>
 
 const urls = ['https://www.accuweather.com/en/us/washington/20006/february-weather/327659?year=2026', 'https://www.accuweather.com/en/us/washington/20006/march-weather/327659?year=2026', 'https://www.accuweather.com/en/us/washington/20006/april-weather/327659?year=2026']
 
+const fToC = f => (f - 32)/1.8
+
 const pseq = (arr, lambda) => {
 
 	return arr.reduce( (agg, cur, i, arr) => {
@@ -51,6 +53,19 @@ pseq(urls, (url, monthIndex) => {
         })
         .map(row => {
             return {...row, tavg : (row.tmin+row.tmax)/2}
+        })
+
+        .map((row, i, arr) => {
+
+            if(arr[0].tavg > 0) {
+                // we are looking at F
+
+                return { ...row, tavg : fToC(row.tavg) }
+
+            }
+
+            return row
+
         })
 
     return data
