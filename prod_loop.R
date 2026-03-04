@@ -24,6 +24,8 @@ residuals_rds  <- "model_residuals_dc.rds"
 out_root <- "outputs"
 runs_dir <- file.path(out_root, "runs")   # per-forecast-date outputs go here
 summary_file <- file.path(out_root, "latest_summary.csv")
+probs_file_latest <- file.path(out_root, "bloom_probabilities.csv")
+temp_file_latest <- file.path(out_root, "temp_paths_sample50.csv")
 
 dir.create(out_root, showWarnings = FALSE, recursive = TRUE)
 dir.create(runs_dir, showWarnings = FALSE, recursive = TRUE)
@@ -390,6 +392,7 @@ for (i in seq_along(files)) {
     mutate(DATE = format(as.Date(DATE), "%Y-%m-%d"))
   
   write_csv(prob_tbl, out_prob_csv)
+  write_csv(prob_tbl, probs_file_latest)
   
   # ---- Output 2: quantiles TXT ----
   qs <- quantile(bloom_doy_adj, probs = c(0.10, 0.50, 0.90), na.rm = TRUE, type = 7)
@@ -430,6 +433,7 @@ for (i in seq_along(files)) {
     mutate(DATE = format(as.Date(DATE), "%Y-%m-%d"))
   
   write_csv(paths_sample, out_paths_csv)
+  write_csv(paths_sample, temp_file_latest)
   
   cat("Wrote outputs:\n",
       " - ", out_prob_csv, "\n",
