@@ -35,6 +35,7 @@ const temps = _(parse(fs.readFileSync('outputs/temp_paths_sample50.csv'), { colu
         return arr.map(row => {
             return {
                 date : row.DATE,
+                observed : row.observed === 'TRUE',
                 tempF : round(32 + row.tmean_c*1.8, 1)
             }
         }).filter((row, i) => {
