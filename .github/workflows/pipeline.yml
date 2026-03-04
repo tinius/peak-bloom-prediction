@@ -1,0 +1,131 @@
+name: Bloom pipeline
+
+on:
+  schedule:
+  - cron: "0 */6 * * *" # every 6 hours
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bloom-pipeline
+  cancel-in-progress: true
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout main
+      uses: actions/checkout@v4
+      with:
+        ref: main
+        fetch-depth: 0
+        persist-credentials: true
+
+    - name: Ensure required directories exist
+      run: |
+        mkdir -p forecast_temps outputs/runs dist
+
+    # -----------------------
+    # Node
+    # -----------------------
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: npm
+
+    - name: Install Node deps
+      run: npm ci
+
+    # -----------------------
+    # R (cached deps)
+    # -----------------------
+    - name: Setup R
+      uses: r-lib/actions/setup-r@v2
+      with:
+        r-version: "4.4"
+
+    - name: Install R packages
+      run: |
+        Rscript -e 'install.packages(c("dplyr","lubridate","readr"), repos="https://cloud.r-project.org")'
+
+    # -----------------------
+    # Run pipeline
+    # -----------------------
+    - name: Fetch forecast
+      run: npm run fetch
+
+    - name: Run model (R)
+      run: Rscript prod_loop.R
+
+    - name: Parse outputs
+      run: npm run parse
+
+    # -----------------------
+    # Commit persisted state back to main
+    # -----------------------
+    - name: Commit forecast_temps and outputs/runs to main (if changed)
+      run: |
+        set -euxo pipefail
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        git add -A forecast_temps outputs/runs
+
+        if git diff --cached --quiet; then
+          echo "No changes in forecast_temps/ or outputs/runs/ to commit."
+        else
+          git commit -m "Update pipeline state ($(date -u +'%Y-%m-%dT%H:%M:%SZ'))"
+          git push origin main
+        fi
+
+    # -----------------------
+    # Publish dist/ to data branch (public)
+    # -----------------------
+    - name: Publish dist/ to data branch
+      run: |
+        set -euxo pipefail
+        test -n "$(ls -A dist)" # fail if dist is empty
+
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        rm -rf /tmp/data-branch
+
+        if git ls-remote --exit-code --heads origin data >/dev/null 2>&1; then
+          git fetch origin data
+          git worktree add /tmp/data-branch data
+        else
+          # Create an orphan 'data' branch with an empty initial commit
+          git worktree add /tmp/data-branch --detach
+          cd /tmp/data-branch
+          git checkout --orphan data
+          find . -mindepth 1 -maxdepth 1 ! -name ".git" -exec rm -rf {} +
+          git commit --allow-empty -m "Initialize data branch"
+          git push origin data
+          cd -
+          rm -rf /tmp/data-branch
+          git fetch origin data
+          git worktree add /tmp/data-branch data
+        fi
+
+        rsync -av --delete --exclude ".git" dist/ /tmp/data-branch/
+
+        cd /tmp/data-branch
+        git add -A
+
+        if git diff --cached --quiet; then
+          echo "No changes to dist outputs to publish."
+          exit 0
+        fi
+
+        git commit -m "Publish dist ($(date -u +'%Y-%m-%dT%H:%M:%SZ'))"
+        git push origin data
+
+    - name: Cleanup worktree
+      if: always()
+      run: |
+        git worktree prune || true

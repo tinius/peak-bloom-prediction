@@ -1,0 +1,13 @@
+Run timestamp: 2026-03-04 11:49:50.963241
+Forecast date (today): 2026-03-04
+Forecast year: 2026
+N_paths used: 10000
+Params: start=02-01, Ts_c=20.0, Ea_kj=80.0
+F*: 15.229089
+Residuals: file=model_residuals_dc.rds | res_scale=1.00
+
+Bloom DOY quantiles (after residual bootstrap):
+Q10: 55.00  (2026-02-24)
+Q50: 58.00  (2026-02-27)
+Q90: 63.00  (2026-03-04)
+MODE: 58  (2026-02-27)  [23.31%]
