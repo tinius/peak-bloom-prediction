@@ -48,14 +48,9 @@ jobs:
       with:
         r-version: "4.4"
 
-    - name: Setup R dependencies (cached)
-      uses: r-lib/actions/setup-r-dependencies@v2
-      with:
-        packages: |
-          dplyr
-          lubridate
-          readr
-        dependencies: FALSE
+    - name: Install R packages
+      run: |
+        Rscript -e 'install.packages(c("dplyr","lubridate","readr"), repos="https://cloud.r-project.org")'
 
     # -----------------------
     # Run pipeline
