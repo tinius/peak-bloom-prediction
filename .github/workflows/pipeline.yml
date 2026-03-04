@@ -85,6 +85,7 @@ jobs:
     # -----------------------
     # Publish dist/ to data branch (public)
     # -----------------------
+
     - name: Publish dist/ to data branch
       run: |
         set -euxo pipefail
@@ -93,25 +94,41 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
-        rm -rf /tmp/data-branch
+        # Clean up any previously registered worktree path
+        git worktree prune || true
+        if [ -d /tmp/data-branch ]; then
+          git worktree remove --force /tmp/data-branch || true
+        fi
 
         if git ls-remote --exit-code --heads origin data >/dev/null 2>&1; then
+          # data exists
           git fetch origin data
           git worktree add /tmp/data-branch data
         else
-          # Create an orphan 'data' branch with an empty initial commit
+          # Create a truly empty orphan data branch (no files, no index)
           git worktree add /tmp/data-branch --detach
           cd /tmp/data-branch
+
           git checkout --orphan data
+
+          # IMPORTANT: clear index so we don't commit the whole repo
+          git reset --mixed
+
+          # Remove all files from working tree (keep .git)
           find . -mindepth 1 -maxdepth 1 ! -name ".git" -exec rm -rf {} +
+
+          git add -A
           git commit --allow-empty -m "Initialize data branch"
           git push origin data
+
           cd -
-          rm -rf /tmp/data-branch
+          git worktree remove --force /tmp/data-branch
+
           git fetch origin data
           git worktree add /tmp/data-branch data
         fi
 
+        # Now /tmp/data-branch is a clean checkout of the data branch.
         rsync -av --delete --exclude ".git" dist/ /tmp/data-branch/
 
         cd /tmp/data-branch
