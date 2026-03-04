@@ -4,6 +4,4 @@
 .Ruserdata
 *.Rproj
 node_modules
-forecast_temps
-outputs/runs
 .DS_Store

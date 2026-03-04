@@ -2,22 +2,34 @@ name: Bloom pipeline
 
 on:
   schedule:
-    - cron: "0 */6 * * *"   # every 6 hours
-  workflow_dispatch:        # allows manual run
+    - cron: "0 */6 * * *"   # every 6 hours (adjust)
+  workflow_dispatch: {}
 
 permissions:
   contents: write
+
+concurrency:
+  group: bloom-pipeline
+  cancel-in-progress: true
 
 jobs:
   run:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout main
         uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Ensure required directories exist
+        run: |
+          mkdir -p forecast_temps outputs/runs dist
 
       # -----------------------
-      # Node setup
+      # Node
       # -----------------------
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -25,19 +37,24 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Install Node dependencies
+      - name: Install Node deps
         run: npm ci
 
       # -----------------------
-      # R setup
+      # R (cached deps)
       # -----------------------
       - name: Setup R
         uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: "4.4"
 
-      - name: Install R packages
-        run: |
-          install.packages(c("dplyr","lubridate","readr"))
-        shell: Rscript {0}
+      - name: Setup R dependencies (cached)
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            dplyr
+            lubridate
+            readr
 
       # -----------------------
       # Run pipeline
@@ -45,26 +62,66 @@ jobs:
       - name: Fetch forecast
         run: npm run fetch
 
-      - name: Run bloom model
+      - name: Run model (R)
         run: Rscript prod_loop.R
 
-      - name: Parse results
+      - name: Parse outputs
         run: npm run parse
 
       # -----------------------
-      # Publish dist/ to data branch
+      # Commit persisted state back to main
       # -----------------------
-      - name: Push outputs to data branch
+      - name: Commit forecast_temps and outputs/runs to main (if changed)
         run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
+          set -euxo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
+          # Only persist what you said must persist:
+          git add -A forecast_temps outputs/runs
+
+          if git diff --cached --quiet; then
+            echo "No changes in forecast_temps/ or outputs/runs/ to commit."
+          else
+            git commit -m "Update pipeline state ($(date -u +'%Y-%m-%dT%H:%M:%SZ'))"
+            git push origin main
+          fi
+
+      # -----------------------
+      # Publish dist/ to data branch (public)
+      # -----------------------
+      - name: Publish dist/ to data branch
+        run: |
+          set -euxo pipefail
+          test -n "$(ls -A dist)"  # fail if dist is empty
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create/update a worktree for the data branch
+          rm -rf /tmp/data-branch
           git fetch origin data || true
-          git checkout -B data origin/data || git checkout -b data
+          if git show-ref --verify --quiet refs/remotes/origin/data; then
+            git worktree add /tmp/data-branch data
+          else
+            git worktree add /tmp/data-branch -b data
+          fi
 
-          rm -rf *
-          cp -r dist/* .
+          # Copy dist contents into the root of data branch
+          rsync -av --delete dist/ /tmp/data-branch/
 
-          git add .
-          git commit -m "Update bloom forecast $(date -u)" || exit 0
-          git push origin data
+          cd /tmp/data-branch
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes to dist outputs to publish."
+            exit 0
+          fi
+
+          git commit -m "Publish dist ($(date -u +'%Y-%m-%dT%H:%M:%SZ'))"
+          git push origin HEAD:data
+
+      - name: Cleanup worktree
+        if: always()
+        run: |
+          git worktree prune || true
