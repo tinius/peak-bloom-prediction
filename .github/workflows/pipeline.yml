@@ -1,0 +1,70 @@
+name: Bloom pipeline
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # every 6 hours
+  workflow_dispatch:        # allows manual run
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # -----------------------
+      # Node setup
+      # -----------------------
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      # -----------------------
+      # R setup
+      # -----------------------
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2
+
+      - name: Install R packages
+        run: |
+          install.packages(c("dplyr","lubridate","readr"))
+        shell: Rscript {0}
+
+      # -----------------------
+      # Run pipeline
+      # -----------------------
+      - name: Fetch forecast
+        run: npm run fetch
+
+      - name: Run bloom model
+        run: Rscript prod_loop.R
+
+      - name: Parse results
+        run: npm run parse
+
+      # -----------------------
+      # Publish dist/ to data branch
+      # -----------------------
+      - name: Push outputs to data branch
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+
+          git fetch origin data || true
+          git checkout -B data origin/data || git checkout -b data
+
+          rm -rf *
+          cp -r dist/* .
+
+          git add .
+          git commit -m "Update bloom forecast $(date -u)" || exit 0
+          git push origin data
