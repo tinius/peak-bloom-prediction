@@ -1,4 +1,4 @@
-Run timestamp: 2026-03-09 14:54:21.902658
+Run timestamp: 2026-03-09 23:33:22.0646
 Forecast date (today): 2026-03-09
 Forecast year: 2026
 N_paths used: 10000
@@ -10,4 +10,4 @@ Bloom DOY quantiles (after residual bootstrap):
 Q10: 86.00  (2026-03-27)
 Q50: 91.00  (2026-04-01)
 Q90: 97.00  (2026-04-07)
-MODE: 91  (2026-04-01)  [9.65%]
+MODE: 91  (2026-04-01)  [9.60%]
