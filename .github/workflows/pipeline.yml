@@ -2,7 +2,7 @@ name: Bloom pipeline
 
 on:
   schedule:
-  - cron: "0 14,23 * * *"
+  - cron: "0 14 * * *"
   workflow_dispatch: {}
 
 permissions:
