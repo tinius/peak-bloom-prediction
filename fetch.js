@@ -57,12 +57,12 @@ pseq(urls, (url, monthIndex) => {
 
         .map((row, i, arr) => {
 
-            if(arr[0].tavg > 0) {
-                // we are looking at F
+            // if(arr[0].tavg > 0) {
+            //     // we are looking at F
 
-                return { ...row, tavg : fToC(row.tavg) }
+            //     return { ...row, tavg : fToC(row.tavg) }
 
-            }
+            // }
 
             return row
 

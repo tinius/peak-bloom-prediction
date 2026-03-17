@@ -373,13 +373,22 @@ for (i in seq_along(files)) {
   ok <- is.finite(bloom_doy_sim)
   bloom_doy_sim <- bloom_doy_sim[ok]
   temp_matrix <- temp_matrix[, ok, drop = FALSE]
+
+  # ---- Add phenology model error (bias-preserving, smoothed) ----
+  res_mean <- mean(residuals_vec, na.rm = TRUE)
+  res_sd   <- sd(residuals_vec, na.rm = TRUE)
   
-  # ---- Add phenology model error (bootstrap residuals) ----
-  err <- sample(residuals_vec, size = length(bloom_doy_sim), replace = TRUE)
-  bloom_doy_adj <- round(bloom_doy_sim + res_scale * err)  # integer day output
+  err <- rnorm(
+    n = length(bloom_doy_sim),
+    mean = res_mean,
+    sd = res_sd
+  )
+  
+  # keep continuous here
+  bloom_doy_adj <- bloom_doy_sim + res_scale * err
   
   year0 <- year(min(df$DATE))
-  bloom_date_adj <- doy_to_date(bloom_doy_adj, year0)
+  bloom_date_adj <- doy_to_date(round(bloom_doy_adj), year0)
   
   # ---- Output 1: probabilities CSV ----
   prob_tbl <- tibble(DATE = bloom_date_adj) %>%
