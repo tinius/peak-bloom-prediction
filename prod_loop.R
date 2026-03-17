@@ -384,11 +384,14 @@ for (i in seq_along(files)) {
     sd = res_sd
   )
   
-  # keep continuous here
+  # continuous internal version
   bloom_doy_adj <- bloom_doy_sim + res_scale * err
   
+  # discrete day version for outputs
+  bloom_doy_adj_day <- round(bloom_doy_adj)
+  
   year0 <- year(min(df$DATE))
-  bloom_date_adj <- doy_to_date(round(bloom_doy_adj), year0)
+  bloom_date_adj <- doy_to_date(bloom_doy_adj_day, year0)
   
   # ---- Output 1: probabilities CSV ----
   prob_tbl <- tibble(DATE = bloom_date_adj) %>%
@@ -404,7 +407,7 @@ for (i in seq_along(files)) {
   write_csv(prob_tbl, probs_file_latest)
   
   # ---- Output 2: quantiles TXT ----
-  qs <- quantile(bloom_doy_adj, probs = c(0.10, 0.50, 0.90), na.rm = TRUE, type = 7)
+  qs <- as.integer(round(quantile(bloom_doy_adj_day, probs = c(0.10, 0.50, 0.90), na.rm = TRUE, type = 7)))
   q_dates <- doy_to_date(as.numeric(qs), year0)
   
   mode_date <- prob_tbl$DATE[which.max(prob_tbl$prob_percent)]
