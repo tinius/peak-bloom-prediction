@@ -57,12 +57,7 @@ pseq(urls, (url, monthIndex) => {
 
         .map((row, i, arr) => {
 
-            // if(arr[0].tavg > 0) {
-            //     // we are looking at F
-
-            //     return { ...row, tavg : fToC(row.tavg) }
-
-            // }
+           
 
             return row
 
@@ -74,7 +69,17 @@ pseq(urls, (url, monthIndex) => {
 
 
 
-}).then((allData) => {
+}).then((allDataRaw) => {
+
+    const allData = allDataRaw.map((row, i, arr) => {
+         if(arr[0].tavg > 0) {
+                // we are looking at F
+
+                return { ...row, tavg : fToC(row.tavg) }
+
+            }
+    })
+
     console.log(allData)
 
     const deduped = _.uniqBy(allData, 'date')
