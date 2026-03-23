@@ -390,6 +390,10 @@ for (i in seq_along(files)) {
   # discrete day version for outputs
   bloom_doy_adj_day <- round(bloom_doy_adj)
   
+  # condition on bloom not yet having occurred
+  today_doy <- yday(today)
+  bloom_doy_adj_day <- bloom_doy_adj_day[bloom_doy_adj_day >= today_doy]
+  
   year0 <- year(min(df$DATE))
   bloom_date_adj <- doy_to_date(bloom_doy_adj_day, year0)
   
